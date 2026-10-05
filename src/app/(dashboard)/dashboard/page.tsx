@@ -41,10 +41,10 @@ async function ChatbotGrid() {
 
   if (!user) return null;
 
-  // Fetch chatbots — counts will be populated when M4/M5 are built
+  // Fetch chatbots with ready document count
   const { data: rows, error } = await supabase
     .from("chatbots")
-    .select("id, name, description, created_at")
+    .select("id, name, description, created_at, documents!left(status)")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -55,15 +55,19 @@ async function ChatbotGrid() {
     );
   }
 
-  const chatbots: ChatbotCardData[] = (rows ?? []).map((bot: any) => ({
-    id: bot.id,
-    name: bot.name,
-    description: bot.description ?? "",
-    created_at: bot.created_at,
-    document_count: 0,
-    conversation_count: 0,
-    status: "no_documents" as const,
-  }));
+  const chatbots: ChatbotCardData[] = (rows ?? []).map((bot: any) => {
+    const docs: { status: string }[] = bot.documents ?? [];
+    const document_count = docs.filter((d) => d.status === "ready").length;
+    return {
+      id: bot.id,
+      name: bot.name,
+      description: bot.description ?? "",
+      created_at: bot.created_at,
+      document_count,
+      conversation_count: 0, // wired up in M5
+      status: document_count > 0 ? "active" : ("no_documents" as const),
+    };
+  });
 
   // ── Empty state ──
   if (chatbots.length === 0) {

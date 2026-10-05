@@ -12,7 +12,6 @@ export default async function ChatbotOverviewPage({ params }: PageProps) {
   const { id } = await params;
   const supabase = await createClient();
 
-  // Simple query — no joins on tables that don't exist yet (M4/M5)
   const { data: bot, error } = await supabase
     .from("chatbots")
     .select("id, name, description, welcome_message, created_at")
@@ -21,15 +20,29 @@ export default async function ChatbotOverviewPage({ params }: PageProps) {
 
   if (error || !bot) notFound();
 
-  // Counts will be live once M4 (documents) and M5 (conversations) are built
-  const docCount = 0;
-  const convCount = 0;
-  const msgCount = 0;
+  // Fetch document count (documents table created in M4 SQL)
+  const { count: docCount } = await supabase
+    .from("documents")
+    .select("*", { count: "exact", head: true })
+    .eq("chatbot_id", id)
+    .eq("status", "ready");
+
+  // conversations table created in M5 — default to 0 until then
+  let convCountVal = 0;
+  try {
+    const { count } = await supabase
+      .from("conversations")
+      .select("*", { count: "exact", head: true })
+      .eq("chatbot_id", id);
+    convCountVal = count ?? 0;
+  } catch {
+    convCountVal = 0;
+  }
 
   const stats = [
-    { label: "Documents", value: docCount, icon: FileText },
-    { label: "Conversations", value: convCount, icon: MessageSquare },
-    { label: "Messages", value: msgCount, icon: Hash },
+    { label: "Documents", value: docCount ?? 0, icon: FileText },
+    { label: "Conversations", value: convCountVal, icon: MessageSquare },
+    { label: "Messages", value: 0, icon: Hash }, // wired up in M8
   ];
 
   return (
