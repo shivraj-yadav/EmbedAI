@@ -28,6 +28,12 @@ interface Document {
   created_at: string;
 }
 
+interface BatchProgress {
+  total: number;
+  current: number;
+  currentFile: string;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number | null): string {
@@ -72,6 +78,9 @@ function StatusBadge({ status }: { status: Document["status"] }) {
       {status === "processing" && (
         <Loader2 className="w-3 h-3 animate-spin" />
       )}
+      {status === "uploading" && (
+        <Loader2 className="w-3 h-3 animate-spin" />
+      )}
       {status === "ready" && <CheckCircle2 className="w-3 h-3" />}
       {status === "failed" && <AlertTriangle className="w-3 h-3" />}
       {label}
@@ -84,12 +93,16 @@ function StatusBadge({ status }: { status: Document["status"] }) {
 function DocumentRow({
   doc,
   onDelete,
+  onUpdate,
 }: {
   doc: Document;
   onDelete: (id: string) => void;
+  onUpdate: (doc: Document) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+
   const ext = doc.filename.split(".").pop()?.toLowerCase() ?? "";
   const icon = FILE_ICON[ext] ?? "📄";
   const canDelete = doc.status === "ready" || doc.status === "failed";
@@ -112,70 +125,144 @@ function DocumentRow({
     }
   }
 
-  return (
-    <div className="flex items-start gap-4 p-4 rounded-xl border border-border bg-card hover:border-border/80 transition-colors">
-      {/* File icon */}
-      <span className="text-2xl leading-none mt-0.5">{icon}</span>
+  async function handleRetry() {
+    setRetrying(true);
+    onUpdate({ ...doc, status: "processing", error_message: null });
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/retry`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Retry failed.");
+        if (data.id) onUpdate(data);
+      } else {
+        onUpdate(data);
+        if (data.status === "ready") {
+          toast.success(`"${doc.filename}" processed successfully!`);
+        } else if (data.status === "failed") {
+          toast.error(`Retry failed: ${data.error_message}`);
+        }
+      }
+    } catch {
+      toast.error("Network error during retry.");
+    } finally {
+      setRetrying(false);
+    }
+  }
 
-      {/* Info */}
-      <div className="flex-1 min-w-0 space-y-1">
-        <p className="font-medium text-sm truncate">{doc.filename}</p>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-          {doc.file_size_bytes && <span>{formatBytes(doc.file_size_bytes)}</span>}
-          {doc.file_size_bytes && <span>•</span>}
-          <span>{formatDate(doc.created_at)}</span>
-          {doc.status === "ready" && doc.chunk_count > 0 && (
-            <>
-              <span>•</span>
-              <span>{doc.chunk_count} chunks</span>
-            </>
+  return (
+    <div className="p-4 rounded-xl border border-border bg-card hover:border-border/80 transition-colors space-y-3">
+      <div className="flex items-start gap-4">
+        {/* File icon */}
+        <span className="text-2xl leading-none mt-0.5">{icon}</span>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 space-y-1">
+          <p className="font-medium text-sm truncate">{doc.filename}</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+            {doc.file_size_bytes && <span>{formatBytes(doc.file_size_bytes)}</span>}
+            {doc.file_size_bytes && <span>•</span>}
+            <span>{formatDate(doc.created_at)}</span>
+            {doc.status === "ready" && doc.chunk_count > 0 && (
+              <>
+                <span>•</span>
+                <span>{doc.chunk_count} chunks</span>
+              </>
+            )}
+          </div>
+          {doc.status === "failed" && doc.error_message && (
+            <p className="text-xs text-destructive mt-1">{doc.error_message}</p>
           )}
         </div>
-        {doc.status === "failed" && doc.error_message && (
-          <p className="text-xs text-destructive mt-1">{doc.error_message}</p>
-        )}
-      </div>
 
-      {/* Status */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <StatusBadge status={doc.status} />
+        {/* Actions & Status */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <StatusBadge status={doc.status} />
 
-        {/* Delete button / confirm */}
-        {!confirming ? (
-          <button
-            onClick={() => setConfirming(true)}
-            disabled={!canDelete || deleting}
-            aria-label={`Delete ${doc.filename}`}
-            className={cn(
-              "p-1.5 rounded-lg transition-colors",
-              canDelete
-                ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                : "text-muted-foreground/30 cursor-not-allowed"
-            )}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        ) : (
-          <div className="flex items-center gap-1">
+          {/* Retry Button for Failed Docs */}
+          {doc.status === "failed" && (
             <Button
               size="sm"
-              variant="destructive"
-              className="h-7 text-xs px-2"
-              onClick={handleDelete}
-              disabled={deleting}
-              id={`confirm-delete-doc-${doc.id}`}
+              variant="outline"
+              className="h-7 text-xs px-2.5 gap-1.5 border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+              onClick={handleRetry}
+              disabled={retrying}
+              title="Retry extraction and embedding"
             >
-              {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+              <RefreshCw className={cn("w-3 h-3", retrying && "animate-spin")} />
+              <span>{retrying ? "Retrying..." : "Retry"}</span>
             </Button>
+          )}
+
+          {/* Delete button / confirm */}
+          {!confirming ? (
             <button
-              onClick={() => setConfirming(false)}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground"
+              onClick={() => setConfirming(true)}
+              disabled={!canDelete || deleting || retrying}
+              aria-label={`Delete ${doc.filename}`}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors",
+                canDelete && !retrying
+                  ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  : "text-muted-foreground/30 cursor-not-allowed"
+              )}
             >
-              <X className="w-3.5 h-3.5" />
+              <Trash2 className="w-4 h-4" />
             </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="destructive"
+                className="h-7 text-xs px-2"
+                onClick={handleDelete}
+                disabled={deleting}
+                id={`confirm-delete-doc-${doc.id}`}
+              >
+                {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
+              </Button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Progress Bars for Active States */}
+      {doc.status === "uploading" && (
+        <div className="space-y-1.5 pt-1 border-t border-border/40">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
+              Uploading to cloud storage...
+            </span>
+            <span className="font-mono text-blue-400">30%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-blue-500 animate-pulse transition-all duration-300 w-[30%]" />
+          </div>
+        </div>
+      )}
+
+      {doc.status === "processing" && (
+        <div className="space-y-1.5 pt-1 border-t border-border/40">
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+              Extracting text &amp; generating vector embeddings...
+            </span>
+            <span className="font-mono text-amber-400">70%</span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-amber-500 animate-pulse transition-all duration-300 w-[70%]" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -193,6 +280,7 @@ function UploadZone({
 }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [zoneError, setZoneError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -208,45 +296,73 @@ function UploadZone({
     return null;
   }
 
-  async function uploadFile(file: File) {
+  async function uploadFiles(fileList: File[]) {
+    if (fileList.length === 0) return;
     setZoneError(null);
-    const err = validateFile(file);
-    if (err) {
-      setZoneError(err);
-      return;
+
+    // Validate files
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    for (const f of fileList) {
+      const err = validateFile(f);
+      if (err) errors.push(err);
+      else validFiles.push(f);
+    }
+
+    if (errors.length > 0) {
+      setZoneError(errors.slice(0, 2).join(" • ") + (errors.length > 2 ? ` (+${errors.length - 2} more)` : ""));
+      if (validFiles.length === 0) return;
     }
 
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
+    let successCount = 0;
 
-    try {
-      const res = await fetch(`/api/chatbots/${chatbotId}/documents`, {
-        method: "POST",
-        body: form,
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      setBatchProgress({
+        total: validFiles.length,
+        current: i + 1,
+        currentFile: file.name,
       });
 
-      const data = await res.json();
+      const form = new FormData();
+      form.append("file", file);
 
-      if (!res.ok) {
-        toast.error(data.error ?? "Upload failed.");
-        setZoneError(data.error ?? "Upload failed.");
-        return;
-      }
+      try {
+        const res = await fetch(`/api/chatbots/${chatbotId}/documents`, {
+          method: "POST",
+          body: form,
+        });
 
-      onUploaded(data as Document);
-      if (data.status === "ready") {
-        toast.success(`"${file.name}" processed successfully!`);
-      } else if (data.status === "failed") {
-        toast.error(`Processing failed: ${data.error_message}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          toast.error(`"${file.name}": ${data.error ?? "Upload failed."}`);
+        } else {
+          onUploaded(data as Document);
+          if (data.status === "ready") {
+            successCount++;
+          } else if (data.status === "failed") {
+            toast.error(`"${file.name}": ${data.error_message ?? "Processing failed"}`);
+          }
+        }
+      } catch {
+        toast.error(`"${file.name}": Network error.`);
       }
-    } catch {
-      toast.error("Network error. Please try again.");
-      setZoneError("Network error. Please try again.");
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
     }
+
+    if (successCount > 0) {
+      toast.success(
+        successCount === 1
+          ? "Document processed successfully!"
+          : `${successCount} documents processed successfully!`
+      );
+    }
+
+    setUploading(false);
+    setBatchProgress(null);
+    if (inputRef.current) inputRef.current.value = "";
   }
 
   const onDrop = useCallback(
@@ -254,8 +370,8 @@ function UploadZone({
       e.preventDefault();
       setDragOver(false);
       if (disabled || uploading) return;
-      const file = e.dataTransfer.files?.[0];
-      if (file) uploadFile(file);
+      const files = Array.from(e.dataTransfer.files ?? []);
+      if (files.length > 0) uploadFiles(files);
     },
     [disabled, uploading]
   );
@@ -269,11 +385,11 @@ function UploadZone({
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
       className={cn(
-        "relative flex flex-col items-center justify-center min-h-[200px] rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer",
+        "relative flex flex-col items-center justify-center min-h-[210px] rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer",
         dragOver && !disabled
           ? "border-primary bg-primary/5"
           : "border-border hover:border-primary/40 hover:bg-muted/30",
-        (disabled || uploading) && "opacity-60 cursor-not-allowed"
+        (disabled || uploading) && "opacity-80 cursor-not-allowed"
       )}
       onClick={() => {
         if (!disabled && !uploading) inputRef.current?.click();
@@ -284,25 +400,48 @@ function UploadZone({
       <input
         ref={inputRef}
         type="file"
+        multiple
         accept=".pdf,.txt,.docx"
         className="sr-only"
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) uploadFile(file);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length > 0) uploadFiles(files);
         }}
         disabled={disabled || uploading}
         id="document-file-input"
       />
 
-      <div className="flex flex-col items-center gap-3 px-6 py-8 text-center pointer-events-none">
-        {uploading ? (
-          <>
+      <div className="flex flex-col items-center gap-3 px-6 py-8 text-center pointer-events-none w-full max-w-md">
+        {uploading && batchProgress ? (
+          <div className="flex flex-col items-center gap-3 w-full animate-in fade-in duration-200">
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
-            <p className="font-medium text-sm">Processing document…</p>
-            <p className="text-xs text-muted-foreground">
-              Extracting text, generating embeddings…
-            </p>
-          </>
+            <div>
+              <p className="font-medium text-sm">
+                Processing {batchProgress.current} of {batchProgress.total}
+              </p>
+              <p className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">
+                {batchProgress.currentFile}
+              </p>
+            </div>
+
+            {/* Overall batch progress bar */}
+            <div className="w-full space-y-1.5 mt-1">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full bg-primary transition-all duration-300 rounded-full"
+                  style={{
+                    width: `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span>Batch upload</span>
+                <span className="font-mono">
+                  {Math.round((batchProgress.current / batchProgress.total) * 100)}%
+                </span>
+              </div>
+            </div>
+          </div>
         ) : (
           <>
             <div
@@ -320,7 +459,7 @@ function UploadZone({
             </div>
             <div>
               <p className="font-medium text-sm">
-                Drag &amp; Drop PDF, TXT, or DOCX files here
+                Drag &amp; Drop multiple PDF, TXT, or DOCX files here
               </p>
               <p className="text-xs text-muted-foreground mt-1">or</p>
             </div>
@@ -336,7 +475,7 @@ function UploadZone({
             >
               Browse Files
             </Button>
-            <p className="text-xs text-muted-foreground">Max 10 MB per file</p>
+            <p className="text-xs text-muted-foreground">Max 10 MB per file • Multi-file supported</p>
           </>
         )}
       </div>
@@ -391,6 +530,10 @@ export function KnowledgeTab({ chatbotId }: { chatbotId: string }) {
     });
   }
 
+  function handleUpdated(doc: Document) {
+    setDocuments((prev) => prev.map((d) => (d.id === doc.id ? doc : d)));
+  }
+
   function handleDeleted(id: string) {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
   }
@@ -442,7 +585,12 @@ export function KnowledgeTab({ chatbotId }: { chatbotId: string }) {
         ) : (
           <div className="space-y-2">
             {documents.map((doc) => (
-              <DocumentRow key={doc.id} doc={doc} onDelete={handleDeleted} />
+              <DocumentRow
+                key={doc.id}
+                doc={doc}
+                onDelete={handleDeleted}
+                onUpdate={handleUpdated}
+              />
             ))}
           </div>
         )}

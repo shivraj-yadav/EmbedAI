@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { uploadToImageKit } from "@/lib/imagekit";
-import { extractText, cleanText } from "@/lib/utils/text-extractor";
-import { chunkText } from "@/lib/utils/chunker";
-import { generateEmbeddings } from "@/lib/utils/embedder";
+import { processDocumentBuffer } from "@/lib/utils/document-processor";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -155,80 +153,13 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
-  // ── Step 3: Extract text ──
-  let rawText: string;
-  try {
-    rawText = await extractText(buffer, file.name);
-  } catch (err: any) {
-    await serviceClient
-      .from("documents")
-      .update({ status: "failed", error_message: "Text extraction failed: " + err.message })
-      .eq("id", doc.id);
-    return NextResponse.json(doc);
-  }
+  // ── Step 3-7: Extract, chunk, embed, store and update status ──
+  await processDocumentBuffer(buffer, file.name, doc.id, chatbotId);
 
-  if (!rawText.trim()) {
-    await serviceClient
-      .from("documents")
-      .update({ status: "failed", error_message: "No text could be extracted from this file." })
-      .eq("id", doc.id);
-    return NextResponse.json(doc);
-  }
-
-  // ── Step 4: Clean + Chunk ──
-  const cleaned = cleanText(rawText);
-  const chunks = chunkText(cleaned);
-
-  if (chunks.length === 0) {
-    await serviceClient
-      .from("documents")
-      .update({ status: "failed", error_message: "Document produced no text chunks." })
-      .eq("id", doc.id);
-    return NextResponse.json(doc);
-  }
-
-  // ── Step 5: Generate embeddings ──
-  let embeddings: number[][];
-  try {
-    embeddings = await generateEmbeddings(chunks);
-  } catch (err: any) {
-    console.error("Embedding error:", err);
-    await serviceClient
-      .from("documents")
-      .update({ status: "failed", error_message: "Embedding generation failed: " + err.message })
-      .eq("id", doc.id);
-    return NextResponse.json(doc);
-  }
-
-  // ── Step 6: Insert chunks ──
-  const chunkRows = chunks.map((content, i) => ({
-    document_id: doc.id,
-    chatbot_id: chatbotId,
-    content,
-    embedding: JSON.stringify(embeddings[i]), // pgvector accepts JSON array
-    chunk_index: i,
-    metadata: {},
-  }));
-
-  const { error: chunkError } = await serviceClient
-    .from("document_chunks")
-    .insert(chunkRows);
-
-  if (chunkError) {
-    console.error("Chunk insert error:", chunkError);
-    await serviceClient
-      .from("documents")
-      .update({ status: "failed", error_message: "Failed to store document chunks." })
-      .eq("id", doc.id);
-    return NextResponse.json(doc);
-  }
-
-  // ── Step 7: Mark as ready ──
   const { data: finalDoc } = await serviceClient
     .from("documents")
-    .update({ status: "ready", chunk_count: chunks.length })
+    .select("id, filename, file_url, status, error_message, file_size_bytes, chunk_count, created_at")
     .eq("id", doc.id)
-    .select()
     .single();
 
   return NextResponse.json(finalDoc ?? doc, { status: 200 });
