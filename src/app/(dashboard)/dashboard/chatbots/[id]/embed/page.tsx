@@ -1,9 +1,10 @@
-export default function EmbedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-      <p className="text-muted-foreground text-sm">
-        Embed code generation will be built in Module 7.
-      </p>
-    </div>
-  );
+import { EmbedTab } from "@/components/dashboard/embed-tab";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function EmbedPage({ params }: PageProps) {
+  const { id } = await params;
+  return <EmbedTab chatbotId={id} />;
 }
