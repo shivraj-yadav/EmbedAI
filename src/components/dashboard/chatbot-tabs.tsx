@@ -11,6 +11,7 @@ interface ChatbotTabsProps {
 const tabs = [
   { label: "Overview",      href: (id: string) => `/dashboard/chatbots/${id}` },
   { label: "Knowledge",     href: (id: string) => `/dashboard/chatbots/${id}/knowledge` },
+  { label: "Preview",       href: (id: string) => `/dashboard/chatbots/${id}/preview` },
   { label: "Settings",      href: (id: string) => `/dashboard/chatbots/${id}/settings` },
   { label: "Conversations", href: (id: string) => `/dashboard/chatbots/${id}/conversations` },
   { label: "Embed",         href: (id: string) => `/dashboard/chatbots/${id}/embed` },

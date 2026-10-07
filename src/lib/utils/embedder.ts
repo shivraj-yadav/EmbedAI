@@ -1,26 +1,25 @@
-// text-embedding-004 produces 768-dimensional vectors.
+// gemini-embedding-001 with outputDimensionality: 768 produces 768-dimensional vectors.
 // This MUST match the vector(768) column in document_chunks.
 export const EMBEDDING_DIMENSION = 768;
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
-// text-embedding-004 is only on v1, NOT v1beta.
-// The @google/generative-ai SDK defaults to v1beta, so we call the REST API directly.
-const EMBEDDING_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`
-
 /**
- * Generate an embedding vector for a single text string via the Gemini v1 REST API.
+ * Generate an embedding vector for a single text string via Gemini REST API.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const res = await fetch(EMBEDDING_URL, {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not defined in environment variables");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${apiKey}`;
+
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "models/text-embedding-004",
       content: { parts: [{ text }] },
       // Force 768 dimensions to match the vector(768) column in pgvector.
-      // Without this, gemini-embedding-001 returns 3072 dims by default.
-      outputDimensionality: 768,
+      outputDimensionality: EMBEDDING_DIMENSION,
     }),
   });
 
@@ -30,6 +29,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   const data = await res.json();
+  if (!data?.embedding?.values) {
+    throw new Error("Invalid embedding response format from Gemini API");
+  }
   return data.embedding.values as number[];
 }
 
