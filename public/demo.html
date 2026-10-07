@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EmbedAI Widget Demo — External Website Simulation</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-weight: 700;
+      font-size: 20px;
+      color: #2563eb;
+    }
+    .container {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    .hero {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 48px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    h1 {
+      font-size: 32px;
+      margin-top: 0;
+    }
+    p {
+      color: #64748b;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .config-card {
+      margin-top: 24px;
+      padding: 20px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+    code {
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">External Website (Customer Store)</div>
+    <div>Live Widget Demo</div>
+  </header>
+
+  <div class="container">
+    <div class="hero">
+      <h1>Welcome to Our Store</h1>
+      <p>
+        This page simulates an external customer website embedding the EmbedAI floating chat widget.
+        Notice the circular chat launcher at the bottom-right corner!
+      </p>
+      <div class="config-card">
+        <strong>Embed Snippet used on this page:</strong>
+        <pre><code>&lt;script src="/widget.js" data-chatbot-id="fa67ee63-c554-43ad-8731-b7afe126f95e" async&gt;&lt;/script&gt;</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- EmbedAI Widget Integration -->
+  <script
+    src="/widget.js"
+    data-chatbot-id="fa67ee63-c554-43ad-8731-b7afe126f95e"
+    async>
+  </script>
+</body>
+</html>

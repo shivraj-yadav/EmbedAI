@@ -22,6 +22,20 @@ If the answer is not found in the Context, respond with: "I couldn't find that i
 Do not make up information. Do not answer questions outside the provided context.
 Be concise, clear, and helpful.`;
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-Conversation-Id",
+  "Access-Control-Expose-Headers": "X-Conversation-Id, X-LLM-Provider",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
+
 // ─── POST /api/chat ───────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
@@ -227,6 +241,7 @@ export async function POST(request: Request) {
 
   return new Response(readable, {
     headers: {
+      ...CORS_HEADERS,
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
