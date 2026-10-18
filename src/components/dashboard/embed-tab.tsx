@@ -38,7 +38,20 @@ export function EmbedTab({ chatbotId }: { chatbotId: string }) {
       try {
         const res = await fetch(`/api/chatbots/${chatbotId}/embed`);
         if (res.ok) {
-          const json = await res.json();
+          const json: EmbedData = await res.json();
+          // Client-side origin fallback: if API returned localhost but user is browsing on a live domain,
+          // dynamically adapt the displayed code snippet to the live domain.
+          if (typeof window !== "undefined" && window.location.origin) {
+            const currentOrigin = window.location.origin.replace(/\/+$/, "");
+            if (
+              json.appUrl?.includes("localhost") &&
+              !currentOrigin.includes("localhost")
+            ) {
+              json.appUrl = currentOrigin;
+              json.widgetUrl = `${currentOrigin}/widget.js`;
+              json.embedCode = `<script\n  src="${currentOrigin}/widget.js"\n  data-chatbot-id="${json.chatbotId}"\n  async>\n</script>`;
+            }
+          }
           setData(json);
         } else {
           toast.error("Failed to load embed data");

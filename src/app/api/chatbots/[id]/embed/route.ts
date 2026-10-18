@@ -38,15 +38,31 @@ export async function GET(request: Request, { params }: RouteParams) {
   const documentCount = readyDocCount ?? 0;
   const isReady = documentCount > 0;
 
-  // 3. Resolve dynamic app URL from environment variable or host
-  const host = request.headers.get("host");
-  const protocol = request.headers.get("x-forwarded-proto") || "http";
-  const headerOrigin = host ? `${protocol}://${host}` : undefined;
+  // 3. Resolve dynamic app URL with intelligent live host detection
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const protocol =
+    forwardedProto || (host && !host.includes("localhost") ? "https" : "http");
+  const requestOrigin = host ? `${protocol}://${host}` : undefined;
+
+  let envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (envUrl) {
+    // If env is set to localhost, but the user is accessing via a live domain, prioritize the live domain
+    if (
+      envUrl.includes("localhost") &&
+      requestOrigin &&
+      !requestOrigin.includes("localhost")
+    ) {
+      envUrl = requestOrigin;
+    }
+  }
+
   const appUrl = (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    headerOrigin ||
+    envUrl ||
+    requestOrigin ||
     "http://localhost:3000"
-  ).replace(/\/$/, "");
+  ).replace(/\/+$/, "");
 
   const widgetUrl = `${appUrl}/widget.js`;
   const embedCode = `<script\n  src="${widgetUrl}"\n  data-chatbot-id="${bot.id}"\n  async>\n</script>`;
