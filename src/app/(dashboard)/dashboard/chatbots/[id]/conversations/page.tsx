@@ -1,9 +1,10 @@
-export default function ConversationsPage() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-      <p className="text-muted-foreground text-sm">
-        Conversation history will be built in Module 8.
-      </p>
-    </div>
-  );
+import { ConversationsTab } from "@/components/dashboard/conversations-tab";
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function ConversationsPage({ params }: PageProps) {
+  const { id } = await params;
+  return <ConversationsTab chatbotId={id} />;
 }
