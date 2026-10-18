@@ -46,7 +46,10 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400, headers: CORS_HEADERS }
+    );
   }
 
   const { chatbotId, conversationId, message } = body;
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
   if (!chatbotId || !message?.trim()) {
     return NextResponse.json(
       { error: "chatbotId and message are required" },
-      { status: 400 }
+      { status: 400, headers: CORS_HEADERS }
     );
   }
 
@@ -67,7 +70,10 @@ export async function POST(request: Request) {
 
   if (botError || !bot) {
     console.error("[chat] Chatbot lookup failed:", botError);
-    return NextResponse.json({ error: "Chatbot not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Chatbot not found" },
+      { status: 404, headers: CORS_HEADERS }
+    );
   }
 
   // 3. Create or load conversation (resilient to missing migrations)
@@ -126,7 +132,7 @@ export async function POST(request: Request) {
     console.error("[chat] Embedding error:", err);
     return NextResponse.json(
       { error: "Failed to generate query embedding: " + (err.message ?? String(err)) },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 
@@ -182,7 +188,7 @@ export async function POST(request: Request) {
     console.error("[chat] Stream initialization error:", err);
     return NextResponse.json(
       { error: "LLM generation failed: " + (err.message ?? String(err)) },
-      { status: 502 }
+      { status: 502, headers: CORS_HEADERS }
     );
   }
 

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EmbedAI Widget Demo — External Website Simulation</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -15,15 +16,20 @@
     header {
       background: #ffffff;
       border-bottom: 1px solid #e2e8f0;
-      padding: 20px 40px;
+      padding: 16px 32px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
     }
     .logo {
       font-weight: 700;
-      font-size: 20px;
+      font-size: 18px;
       color: #2563eb;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .container {
       max-width: 900px;
@@ -33,59 +39,173 @@
     .hero {
       background: #ffffff;
       border-radius: 16px;
-      padding: 48px;
+      padding: 40px;
       border: 1px solid #e2e8f0;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
     h1 {
-      font-size: 32px;
+      font-size: 28px;
       margin-top: 0;
+      color: #0f172a;
     }
     p {
       color: #64748b;
-      font-size: 16px;
+      font-size: 15px;
       line-height: 1.6;
+    }
+    .bot-switcher {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f5f9;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .bot-switcher input {
+      font-family: monospace;
+      font-size: 12px;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      width: 280px;
+      background: #ffffff;
+      outline: none;
+    }
+    .bot-switcher input:focus {
+      border-color: #2563eb;
+    }
+    .bot-switcher button {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .bot-switcher button:hover {
+      background: #1d4ed8;
     }
     .config-card {
       margin-top: 24px;
       padding: 20px;
-      background: #f1f5f9;
+      background: #0f172a;
       border-radius: 10px;
-      font-size: 14px;
+      font-size: 13px;
+      color: #f8fafc;
     }
-    code {
-      background: #e2e8f0;
-      padding: 2px 6px;
-      border-radius: 4px;
+    .config-card strong {
+      color: #94a3b8;
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    pre {
+      margin: 0;
+      overflow-x: auto;
       font-family: monospace;
+      color: #38bdf8;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #dbeafe;
+      color: #1e40af;
     }
   </style>
 </head>
 <body>
   <header>
-    <div class="logo">External Website (Customer Store)</div>
-    <div>Live Widget Demo</div>
+    <div class="logo">
+      <span>🛍️</span> External Website (Customer Store)
+    </div>
+    <div class="bot-switcher">
+      <span style="color: #64748b;">Chatbot ID:</span>
+      <input type="text" id="botInput" placeholder="Enter chatbot UUID" />
+      <button type="button" id="applyBotBtn">Load Bot</button>
+    </div>
   </header>
 
   <div class="container">
     <div class="hero">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span class="badge">Live Widget Simulation</span>
+        <span id="activeBotBadge" style="font-size: 12px; color: #64748b; font-family: monospace;"></span>
+      </div>
+
       <h1>Welcome to Our Store</h1>
       <p>
-        This page simulates an external customer website embedding the EmbedAI floating chat widget.
-        Notice the circular chat launcher at the bottom-right corner!
+        This page simulates an external customer website embedding your EmbedAI floating chat widget.
+        Notice the circular launcher button at the bottom-right corner! Click it to test sending real questions to your knowledge base.
       </p>
+
       <div class="config-card">
         <strong>Embed Snippet used on this page:</strong>
-        <pre><code>&lt;script src="/widget.js" data-chatbot-id="fa67ee63-c554-43ad-8731-b7afe126f95e" async&gt;&lt;/script&gt;</code></pre>
+        <pre><code id="snippetCode">Loading snippet...</code></pre>
       </div>
     </div>
   </div>
 
-  <!-- EmbedAI Widget Integration -->
-  <script
-    src="/widget.js"
-    data-chatbot-id="fa67ee63-c554-43ad-8731-b7afe126f95e"
-    async>
+  <script>
+    (function() {
+      // 1. Resolve Chatbot ID from URL param (?id= or ?chatbotId=), localStorage, or default
+      const DEFAULT_BOT_ID = "271cfa5a-927e-4b5c-905c-7aaf3564329e";
+      const params = new URLSearchParams(window.location.search);
+      const urlBotId = params.get("id") || params.get("chatbotId");
+      const storedBotId = localStorage.getItem("embedai_demo_bot_id");
+
+      const activeBotId = (urlBotId || storedBotId || DEFAULT_BOT_ID).trim();
+
+      // Persist chosen ID
+      localStorage.setItem("embedai_demo_bot_id", activeBotId);
+
+      // 2. Setup switcher UI
+      const botInput = document.getElementById("botInput");
+      const applyBtn = document.getElementById("applyBotBtn");
+      const badge = document.getElementById("activeBotBadge");
+      const snippet = document.getElementById("snippetCode");
+
+      if (botInput) botInput.value = activeBotId;
+      if (badge) badge.textContent = "ID: " + activeBotId;
+
+      const origin = window.location.origin;
+      const scriptCode = '<script\n  src="' + origin + '/widget.js"\n  data-chatbot-id="' + activeBotId + '"\n  async>\n<\/script>';
+      if (snippet) snippet.textContent = scriptCode;
+
+      if (applyBtn) {
+        applyBtn.addEventListener("click", function() {
+          const newId = botInput.value.trim();
+          if (newId) {
+            localStorage.setItem("embedai_demo_bot_id", newId);
+            window.location.search = "?id=" + encodeURIComponent(newId);
+          }
+        });
+      }
+
+      if (botInput) {
+        botInput.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") {
+            applyBtn.click();
+          }
+        });
+      }
+
+      // 3. Dynamically inject widget.js for the active chatbot
+      const scriptTag = document.createElement("script");
+      scriptTag.src = "/widget.js";
+      scriptTag.setAttribute("data-chatbot-id", activeBotId);
+      scriptTag.async = true;
+      document.body.appendChild(scriptTag);
+    })();
   </script>
 </body>
 </html>

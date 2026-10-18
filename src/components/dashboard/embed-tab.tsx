@@ -264,7 +264,11 @@ export function EmbedTab({ chatbotId }: { chatbotId: string }) {
                 Want to test locally without building an external site?
               </span>
               <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
-                <a href="/demo.html" target="_blank" rel="noopener noreferrer">
+                <a
+                  href={`/demo.html?id=${chatbotId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   Open Live Demo
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
