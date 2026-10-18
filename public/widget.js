@@ -21,16 +21,30 @@
     return;
   }
 
-  // Derive base URL from script src (handles localhost or production CDN)
+  // Derive base URL dynamically:
+  // 1. Check explicit data-api-url or data-base-url attribute
+  // 2. Derive from the script's own src URL (works in production Vercel/CDN)
+  // 3. Fallback to current window origin
   let baseUrl = "";
-  try {
-    const scriptSrc = currentScript.src;
-    if (scriptSrc) {
-      const url = new URL(scriptSrc);
-      baseUrl = `${url.protocol}//${url.host}`;
+  const explicitUrl =
+    currentScript.getAttribute("data-api-url") ||
+    currentScript.getAttribute("data-base-url");
+
+  if (explicitUrl) {
+    baseUrl = explicitUrl.replace(/\/$/, "");
+  } else {
+    try {
+      const scriptSrc = currentScript.src || currentScript.getAttribute("src");
+      if (scriptSrc && (scriptSrc.startsWith("http://") || scriptSrc.startsWith("https://"))) {
+        baseUrl = new URL(scriptSrc).origin;
+      } else if (scriptSrc && scriptSrc.startsWith("//")) {
+        baseUrl = window.location.protocol + scriptSrc.split("/")[2];
+      } else {
+        baseUrl = window.location.origin;
+      }
+    } catch {
+      baseUrl = window.location.origin;
     }
-  } catch {
-    baseUrl = window.location.origin;
   }
 
   // Session storage keys
