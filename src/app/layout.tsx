@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   title: "EmbedAI — AI Chatbots from Your Documents",
   description:
     "Create AI-powered chatbots from your documents and embed them into any website in minutes.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

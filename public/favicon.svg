@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <!-- Main gradient: indigo → violet -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <!-- Inner glow for lightning bolt -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur"/>
+      <feFlood flood-color="#e0e7ff" flood-opacity="0.8" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="32" height="32" rx="8" fill="url(#bgGrad)"/>
+
+  <!-- Chat bubble shape (filled white, rounded tail bottom-left) -->
+  <path
+    d="M6 7.5C6 6.12 7.12 5 8.5 5h15C24.88 5 26 6.12 26 7.5v12C26 20.88 24.88 22 23.5 22H13l-4 4v-4H8.5C7.12 22 6 20.88 6 19.5V7.5Z"
+    fill="white"
+    fill-opacity="0.18"
+  />
+  <!-- Chat bubble outline -->
+  <path
+    d="M6 7.5C6 6.12 7.12 5 8.5 5h15C24.88 5 26 6.12 26 7.5v12C26 20.88 24.88 22 23.5 22H13l-4 4v-4H8.5C7.12 22 6 20.88 6 19.5V7.5Z"
+    stroke="white"
+    stroke-opacity="0.35"
+    stroke-width="0.75"
+    fill="none"
+  />
+
+  <!-- Lightning bolt / AI spark icon centered in bubble -->
+  <!-- Represents "intelligence" / AI powering the chat -->
+  <path
+    d="M18.5 8.5L13 15h4.5L13.5 22.5L20 15.5H15.5L18.5 8.5Z"
+    fill="white"
+    filter="url(#glow)"
+  />
+
+  <!-- 3 small dots bottom-right: "document embedding" hint -->
+  <circle cx="22" cy="10" r="1" fill="white" fill-opacity="0.7"/>
+  <circle cx="22" cy="13.5" r="1" fill="white" fill-opacity="0.5"/>
+  <circle cx="22" cy="17" r="1" fill="white" fill-opacity="0.3"/>
+</svg>
